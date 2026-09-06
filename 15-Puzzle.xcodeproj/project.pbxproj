@@ -6,14 +6,24 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E5B2633E304DB520005A42A9 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = E5B2633D304DB520005A42A9 /* README.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		E5B262CF304D93C8005A42A9 /* 15-Puzzle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "15-Puzzle.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E5B2633D304DB520005A42A9 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E5B262D1304D93C8005A42A9 /* 15-Puzzle */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "15-Puzzle";
+			sourceTree = "<group>";
+		};
+		E5B2632C304DB2A8005A42A9 /* screenshots */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = screenshots;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,8 +42,10 @@
 		E5B262C6304D93C8005A42A9 = {
 			isa = PBXGroup;
 			children = (
+				E5B2632C304DB2A8005A42A9 /* screenshots */,
 				E5B262D1304D93C8005A42A9 /* 15-Puzzle */,
 				E5B262D0304D93C8005A42A9 /* Products */,
+				E5B2633D304DB520005A42A9 /* README.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -62,6 +74,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				E5B262D1304D93C8005A42A9 /* 15-Puzzle */,
+				E5B2632C304DB2A8005A42A9 /* screenshots */,
 			);
 			name = "15-Puzzle";
 			packageProductDependencies = (
@@ -109,6 +122,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E5B2633E304DB520005A42A9 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

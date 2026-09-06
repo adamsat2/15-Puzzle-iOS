@@ -8,11 +8,11 @@ Below is a look at the game in both light and dark appearances.
 
 | Initial State (Light Mode) | Initial State (Dark Mode) |
 | :---: | :---: |
-| ![Initial Light](screenshots/initial-light.jpeg) | ![Initial Dark](screenshots/initial-dark.jpeg) |
+| ![Initial Light](screenshots/initial-light.jpg) | ![Initial Dark](screenshots/initial-dark.jpg) |
 
 | Win State (Light Mode) | Win State (Dark Mode) |
 | :---: | :---: |
-| ![Win Light](screenshots/win-light.jpeg) | ![Win Dark](screenshots/win-dark.jpeg) |
+| ![Win Light](screenshots/win-light.jpg) | ![Win Dark](screenshots/win-dark.jpg) |
 
 ## How to Play
 
