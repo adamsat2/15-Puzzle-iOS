@@ -43,6 +43,9 @@ struct GameGridView: View {
         
         if tappedRow == blankRow || tappedCol == blankCol {
             
+            let impactMed = UIImpactFeedbackGenerator(style: .light)
+            impactMed.impactOccurred()
+            
             // Determine the direction to shift items
             let step: Int
             if tappedRow == blankRow {
@@ -60,6 +63,7 @@ struct GameGridView: View {
             
             if board == Array(1...16) {
                 withAnimation {
+                    SoundManager.shared.playSound(soundName: "win")
                     isGameWon = true
                 }
             }

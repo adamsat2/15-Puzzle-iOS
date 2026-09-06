@@ -19,7 +19,7 @@ struct MainView: View {
                     Text("YOU WIN!")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.green)
+                        .foregroundColor(.yellow)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -30,6 +30,7 @@ struct MainView: View {
             Spacer()
             
             Button(action: {
+                SoundManager.shared.playSound(soundName: "tap")
                 startNewGame()
             }) {
                 Text(isGameWon ? "Play Again" : "Restart Game")
@@ -40,7 +41,7 @@ struct MainView: View {
                     .background(
                         Color.mint
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .clipShape(.capsule)
             }
             .padding(.horizontal, 30)
             .padding(.bottom, 30)
