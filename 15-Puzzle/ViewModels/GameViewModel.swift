@@ -78,6 +78,8 @@ class GameViewModel {
     
     func startNewGame(animated: Bool = true) {
         isGameWon = false
+        stepCount = 0
+        isNewRecord = false
         
         var tempBoard = Array(1...16)
         var currentBlankIndex = 15
