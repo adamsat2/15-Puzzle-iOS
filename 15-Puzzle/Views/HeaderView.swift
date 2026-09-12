@@ -19,6 +19,7 @@ struct HeaderView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
