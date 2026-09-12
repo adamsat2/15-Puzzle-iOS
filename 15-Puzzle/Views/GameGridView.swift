@@ -7,6 +7,7 @@ import SwiftUI
 
 struct GameGridView: View {
     @Bindable var viewModel: GameViewModel
+    @State private var activeSwipeTile: Int? = nil
     
     let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 4)
     
@@ -22,10 +23,16 @@ struct GameGridView: View {
                     // swipe
                     .gesture(
                         DragGesture(minimumDistance: 15)
-                            .onEnded { _ in
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0)) {
-                                    viewModel.move(number: number)
+                            .onChanged { _ in
+                                if activeSwipeTile != number {
+                                    activeSwipeTile = number
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0)) {
+                                        viewModel.move(number: number)
+                                    }
                                 }
+                            }
+                            .onEnded { _ in
+                                activeSwipeTile = nil
                             }
                     )
             }
