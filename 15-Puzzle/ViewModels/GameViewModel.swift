@@ -12,6 +12,10 @@ class GameViewModel {
     var stepCount: Int = 0
     var isNewRecord: Bool = false
     
+    private let timeManager = TimeManager()
+    var elapsedTimeString: String = "00:00"
+    private var uiTimer: Timer?
+    
     // Storing the top record in UserDefaults instead of SwiftData because it's just one integer value
     var topRecord: Int {
         get { UserDefaults.standard.integer(forKey: "Top15PuzzleRecord") }
