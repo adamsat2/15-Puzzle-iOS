@@ -6,9 +6,11 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var viewModel = GameViewModel()
+    
     var body: some View {
         VStack {
-            MainView(viewModel: GameViewModel())
+            MainView(viewModel: viewModel)
         }
         .padding()
     }

@@ -11,7 +11,7 @@ struct MainView: View {
     var body: some View {
         VStack(spacing: 24) {
             HeaderView()
-                .padding(.top, 10)
+                .padding(.top, 30)
             
             ZStack {
                 if viewModel.isGameWon {
@@ -33,10 +33,24 @@ struct MainView: View {
             }
             .frame(height: 20)
             
-            HStack(spacing: 20) {
-                StatBoxView(title: "STEPS", value: "\(viewModel.stepCount)")
-                StatBoxView(title: "BEST", value: viewModel.topRecord == 0 ? "--" : "\(viewModel.topRecord)")
+            TabView {
+                HStack(spacing: 20) {
+                    StatBoxView(title: "STEPS", value: "\(viewModel.stepCount)")
+                    StatBoxView(title: "BEST", value: viewModel.topRecord == 0 ? "--" : "\(viewModel.topRecord)")
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 50)
+                
+                HStack(spacing: 20) {
+                    StatBoxView(title: "TIME", value: viewModel.elapsedTimeString)
+                    StatBoxView(title: "BEST", value: viewModel.bestTimeString)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 50)
             }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .indexViewStyle(.page(backgroundDisplayMode: .always)) // Ensures the dots are clearly visible against any background
+            .frame(minHeight: 120, idealHeight: 130, maxHeight: 150)
             
             GameGridView(viewModel: viewModel)
             
@@ -66,5 +80,13 @@ struct MainView: View {
 }
 
 #Preview {
-    MainView(viewModel: GameViewModel())
+    struct PreviewWrapper: View {
+        @State private var viewModel = GameViewModel()
+        
+        var body: some View {
+            MainView(viewModel: viewModel)
+        }
+    }
+    
+    return PreviewWrapper()
 }

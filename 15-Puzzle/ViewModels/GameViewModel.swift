@@ -21,6 +21,14 @@ class GameViewModel {
         get { UserDefaults.standard.integer(forKey: "Top15PuzzleRecord") }
         set { UserDefaults.standard.set(newValue, forKey: "Top15PuzzleRecord") }
     }
+    var bestTimeRecord: TimeInterval {
+        get { UserDefaults.standard.double(forKey: "Best15PuzzleTime") }
+        set { UserDefaults.standard.set(newValue, forKey: "Best15PuzzleTime") }
+    }
+    
+    var bestTimeString: String {
+        bestTimeRecord == 0 ? "--:--" : formatTime(bestTimeRecord)
+    }
     
     init() {
         startNewGame(animated: false)
@@ -78,10 +86,22 @@ class GameViewModel {
             isGameWon = true
         }
         
-        let currentRecord = topRecord
+        let currentStepRecord = topRecord
+        let currentTimeRecord = bestTimeRecord
+        let finalTime = timeManager.totalElapsedTime
         
-        if currentRecord == 0 || stepCount < currentRecord {
+        var brokeRecord = false
+        
+        if currentStepRecord == 0 || stepCount < currentStepRecord {
             topRecord = stepCount
+            brokeRecord = true
+        }
+        if currentTimeRecord == 0 || finalTime < currentTimeRecord {
+            bestTimeRecord = finalTime
+            brokeRecord = true
+        }
+        
+        if brokeRecord {
             isNewRecord = true
             SoundManager.shared.playSound(soundName: "newrecord")
         } else {
@@ -144,5 +164,11 @@ class GameViewModel {
         let minutes = Int(elapsed) / 60
         let seconds = Int(elapsed) % 60
         elapsedTimeString = String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }
