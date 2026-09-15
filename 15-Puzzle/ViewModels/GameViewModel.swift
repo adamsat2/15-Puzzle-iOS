@@ -28,6 +28,12 @@ class GameViewModel {
     
     func move(number: Int) {
         guard !isGameWon else { return }
+        
+        if !timeManager.isRunning && stepCount == 0 {
+            timeManager.startTimer()
+            startUITimer()
+        }
+        
         guard let tappedIndex = board.firstIndex(of: number),
               let blankIndex = board.firstIndex(of: 16) else { return }
         
@@ -65,6 +71,9 @@ class GameViewModel {
     }
     
     private func handleWinCondition() {
+        timeManager.pauseTimer()
+        uiTimer?.invalidate()
+        
         withAnimation {
             isGameWon = true
         }
@@ -84,6 +93,10 @@ class GameViewModel {
         isGameWon = false
         stepCount = 0
         isNewRecord = false
+        
+        timeManager.stopAndResetTimer()
+        uiTimer?.invalidate()
+        elapsedTimeString = "00:00"
         
         var tempBoard = Array(1...16)
         var currentBlankIndex = 15
@@ -117,5 +130,19 @@ class GameViewModel {
         if col < 3 { moves.append(blankIndex + 1) } // right
         
         return moves
+    }
+    
+    private func startUITimer() {
+        uiTimer?.invalidate()
+        uiTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.updateElapsedTime()
+        }
+    }
+    
+    private func updateElapsedTime() {
+        let elapsed = timeManager.totalElapsedTime
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+        elapsedTimeString = String(format: "%02d:%02d", minutes, seconds)
     }
 }
