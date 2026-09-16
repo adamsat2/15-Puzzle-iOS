@@ -26,8 +26,9 @@ To move tiles, tap or swipe on any numbered tile in the same row or column as th
 
 * **Algorithmic Scrambling:** The game simulates 150 random valid moves from a solved state. This guarantees that every generated puzzle is 100 percent solvable.
 * **Fluid Animations and Gestures:** Utilizing SwiftUI spring animations, the tiles slide naturally into place via tap or swipe gestures. The logic supports shifting entire rows or columns at once.
-* **Step Tracking and High Scores:** A live step counter tracks the player's efficiency. The app uses UserDefaults to permanently save and display the player's best record across sessions.
-* **Audio and Haptic Feedback:** Includes tactile vibration feedback for tile movements and custom audio cues for standard victories and record breaking wins.
+* **Step and Time Tracking:** Live counters track the player's efficiency. You can seamlessly toggle between step stats and time stats by swiping through a native, modern carousel. The app uses `UserDefaults` to permanently save and display your best records for both categories across sessions.
+* **High-Precision Objective-C Timer Engine:** To showcase interoperability, the game's background time tracking is built entirely in Objective-C using precise `NSDate` timestamp math to eliminate background timer drift. This legacy engine is seamlessly integrated into the modern Swift UI via a custom Bridging Header.
+* **Audio and Haptic Feedback:** Includes tactile vibration feedback for tile movements and custom audio cues for standard victories and record-breaking wins.
 * **MVVM Architecture:** The codebase strictly separates the user interface from the game engine, ensuring a scalable and easily readable environment.
 * **System Theme Support:** The interface seamlessly adapts to the system appearance settings, supporting both bright and dark modes.
 
@@ -35,5 +36,5 @@ To move tiles, tap or swipe on any numbered tile in the same row or column as th
 
 The codebase is organized into modular components:
 * **ViewModels:** Contains `GameViewModel.swift` which handles the game state, movement validation, and scoring logic.
-* **Views:** Contains `MainView.swift` for the central container, `HeaderView.swift` for attribution, `StatBoxView.swift` for the score counters, `GameGridView.swift` for rendering the board, and `TileView.swift` for individual cells.
-* **Utils:** Contains `SoundManager.swift` to handle audio playback and memory lifecycle.
+* **Views:** Contains `MainView.swift` for the central container and swipeable stats carousel, `HeaderView.swift` for attribution, `StatBoxView.swift` for the score counters, `GameGridView.swift` for rendering the board, and `TileView.swift` for individual cells.
+* **Utils:** Contains `SoundManager.swift` to handle audio playback and memory lifecycle, alongside the Objective-C `TimeManager.h` and `TimeManager.m` classes that power the background timer logic. A Bridging Header connects this engine to the main Swift app.
