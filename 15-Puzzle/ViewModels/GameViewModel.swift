@@ -4,10 +4,36 @@
 //
 
 import SwiftUI
+import TipKit
+
+enum GameLevel: Int, CaseIterable, Identifiable {
+    case twoByTwo = 2
+    case threeByThree = 3
+    case fourByFour = 4
+    case fiveByFive = 5
+    case sixBySix = 6
+    
+    var id: Int { rawValue }
+    var dimension: Int { rawValue }
+    var totalTiles: Int { dimension * dimension }
+    var title: String { "\(dimension)×\(dimension)" }
+    var tileRangeDescription: String { "1 - \(totalTiles - 1)" }
+    
+    var stepRecordKey: String {
+        dimension == 4 ? "Top15PuzzleRecord" : "Top15PuzzleRecord_\(dimension)x\(dimension)"
+    }
+    
+    var timeRecordKey: String {
+        dimension == 4 ? "Best15PuzzleTime" : "Best15PuzzleTime_\(dimension)x\(dimension)"
+    }
+}
 
 @Observable
 class GameViewModel {
-    var board: [Int] = Array(1...16)
+    private static let lastSelectedLevelKey = "LastSelectedPuzzleLevel"
+    
+    var selectedLevel: GameLevel = .twoByTwo
+    var board: [Int] = Array(1...4)
     var isGameWon: Bool = false
     var stepCount: Int = 0
     var isNewRecord: Bool = false
@@ -15,15 +41,41 @@ class GameViewModel {
     private let timeManager = TimeManager()
     var elapsedTimeString: String = "00:00"
     private var uiTimer: Timer?
+    private var recordsUpdateTrigger: Int = 0
     
-    // Storing the top record in UserDefaults instead of SwiftData because it's just one integer value
-    var topRecord: Int {
-        get { UserDefaults.standard.integer(forKey: "Top15PuzzleRecord") }
-        set { UserDefaults.standard.set(newValue, forKey: "Top15PuzzleRecord") }
+    var dimension: Int {
+        selectedLevel.dimension
     }
+    
+    var totalTiles: Int {
+        selectedLevel.totalTiles
+    }
+    
+    var hasActiveRun: Bool {
+        stepCount > 0 && !isGameWon
+    }
+    
+    // Storing the top record in UserDefaults per level
+    var topRecord: Int {
+        get {
+            _ = recordsUpdateTrigger
+            return UserDefaults.standard.integer(forKey: selectedLevel.stepRecordKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: selectedLevel.stepRecordKey)
+            recordsUpdateTrigger += 1
+        }
+    }
+    
     var bestTimeRecord: TimeInterval {
-        get { UserDefaults.standard.double(forKey: "Best15PuzzleTime") }
-        set { UserDefaults.standard.set(newValue, forKey: "Best15PuzzleTime") }
+        get {
+            _ = recordsUpdateTrigger
+            return UserDefaults.standard.double(forKey: selectedLevel.timeRecordKey)
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: selectedLevel.timeRecordKey)
+            recordsUpdateTrigger += 1
+        }
     }
     
     var bestTimeString: String {
@@ -31,6 +83,100 @@ class GameViewModel {
     }
     
     init() {
+        selectedLevel = Self.initialLevel()
+        PuzzleTutorialTip.isShowingTutorialLevel = (selectedLevel == .twoByTwo)
+        startNewGame(animated: false)
+    }
+    
+    private static func initialLevel() -> GameLevel {
+        let savedRaw = UserDefaults.standard.integer(forKey: lastSelectedLevelKey)
+        if let savedLevel = GameLevel(rawValue: savedRaw), isLevelUnlockedStatic(savedLevel) {
+            return savedLevel
+        }
+        // First launch starts on the 2×2 tutorial level
+        return .twoByTwo
+    }
+    
+    private static func isLevelCompletedStatic(_ level: GameLevel) -> Bool {
+        UserDefaults.standard.integer(forKey: level.stepRecordKey) > 0
+            || UserDefaults.standard.double(forKey: level.timeRecordKey) > 0
+    }
+    
+    private static func isLevelUnlockedStatic(_ level: GameLevel) -> Bool {
+        switch level {
+        case .twoByTwo, .threeByThree, .fourByFour:
+            return true
+        case .fiveByFive:
+            return isLevelCompletedStatic(.twoByTwo)
+                && isLevelCompletedStatic(.threeByThree)
+                && isLevelCompletedStatic(.fourByFour)
+        case .sixBySix:
+            return isLevelUnlockedStatic(.fiveByFive)
+                && isLevelCompletedStatic(.fiveByFive)
+        }
+    }
+    
+    func topRecord(for level: GameLevel) -> Int {
+        _ = recordsUpdateTrigger
+        return UserDefaults.standard.integer(forKey: level.stepRecordKey)
+    }
+    
+    func bestTimeRecord(for level: GameLevel) -> TimeInterval {
+        _ = recordsUpdateTrigger
+        return UserDefaults.standard.double(forKey: level.timeRecordKey)
+    }
+    
+    func bestTimeString(for level: GameLevel) -> String {
+        let time = bestTimeRecord(for: level)
+        return time == 0 ? "--:--" : formatTime(time)
+    }
+    
+    func isLevelCompleted(_ level: GameLevel) -> Bool {
+        topRecord(for: level) > 0 || bestTimeRecord(for: level) > 0
+    }
+    
+    func isLevelUnlocked(_ level: GameLevel) -> Bool {
+        switch level {
+        case .twoByTwo, .threeByThree, .fourByFour:
+            return true
+        case .fiveByFive:
+            return isLevelCompleted(.twoByTwo)
+                && isLevelCompleted(.threeByThree)
+                && isLevelCompleted(.fourByFour)
+        case .sixBySix:
+            return isLevelUnlocked(.fiveByFive) && isLevelCompleted(.fiveByFive)
+        }
+    }
+    
+    func lockHintMessage(for level: GameLevel) -> String? {
+        guard !isLevelUnlocked(level) else { return nil }
+        
+        switch level {
+        case .fiveByFive:
+            let required: [GameLevel] = [.twoByTwo, .threeByThree, .fourByFour]
+            let remaining = required.filter { !isLevelCompleted($0) }.map(\.title)
+            let formattedList: String
+            switch remaining.count {
+            case 1:
+                formattedList = remaining[0]
+            case 2:
+                formattedList = "\(remaining[0]) & \(remaining[1])"
+            default:
+                formattedList = "\(remaining[0]), \(remaining[1]) & \(remaining[2])"
+            }
+            return "Complete \(formattedList) to unlock 5×5"
+        case .sixBySix:
+            return "Complete 5×5 to unlock 6×6"
+        default:
+            return nil
+        }
+    }
+    
+    func selectLevel(_ level: GameLevel) {
+        guard isLevelUnlocked(level), level != selectedLevel else { return }
+        selectedLevel = level
+        UserDefaults.standard.set(level.rawValue, forKey: Self.lastSelectedLevelKey)
+        PuzzleTutorialTip.isShowingTutorialLevel = (level == .twoByTwo)
         startNewGame(animated: false)
     }
     
@@ -42,16 +188,18 @@ class GameViewModel {
             startUITimer()
         }
         
-        guard let tappedIndex = board.firstIndex(of: number),
-              let blankIndex = board.firstIndex(of: 16) else { return }
+        let dim = dimension
+        let blankTile = totalTiles
         
-        let tappedRow = tappedIndex / 4
-        let tappedCol = tappedIndex % 4
-        let blankRow = blankIndex / 4
-        let blankCol = blankIndex % 4
+        guard let tappedIndex = board.firstIndex(of: number),
+              let blankIndex = board.firstIndex(of: blankTile) else { return }
+        
+        let tappedRow = tappedIndex / dim
+        let tappedCol = tappedIndex % dim
+        let blankRow = blankIndex / dim
+        let blankCol = blankIndex % dim
         
         if tappedRow == blankRow || tappedCol == blankCol {
-            
             let impactMed = UIImpactFeedbackGenerator(style: .light)
             impactMed.impactOccurred()
             
@@ -62,7 +210,7 @@ class GameViewModel {
             if tappedRow == blankRow {
                 step = tappedIndex < blankIndex ? -1 : 1
             } else {
-                step = tappedIndex < blankIndex ? -4 : 4
+                step = tappedIndex < blankIndex ? -dim : dim
             }
             
             var curr = blankIndex
@@ -72,7 +220,7 @@ class GameViewModel {
                 curr = next
             }
             
-            if board == Array(1...16) {
+            if board == Array(1...blankTile) {
                 handleWinCondition()
             }
         }
@@ -84,6 +232,10 @@ class GameViewModel {
         
         withAnimation {
             isGameWon = true
+        }
+        
+        if selectedLevel == .twoByTwo {
+            PuzzleTutorialTip().invalidate(reason: .actionPerformed)
         }
         
         let currentStepRecord = topRecord
@@ -118,15 +270,31 @@ class GameViewModel {
         uiTimer?.invalidate()
         elapsedTimeString = "00:00"
         
-        var tempBoard = Array(1...16)
-        var currentBlankIndex = 15
+        let total = totalTiles
+        let solvedBoard = Array(1...total)
+        var tempBoard = solvedBoard
+        var currentBlankIndex = total - 1
+        let shuffleMoves = max(150, total * 12)
         
         // Simulate random legal moves to ensure the puzzle is solvable
-        for _ in 0..<150 {
+        for _ in 0..<shuffleMoves {
             let possibleMoves = getValidMoves(for: currentBlankIndex)
             if let randomMove = possibleMoves.randomElement() {
                 tempBoard.swapAt(currentBlankIndex, randomMove)
                 currentBlankIndex = randomMove
+            }
+        }
+        
+        // Ensure the shuffled board doesn't accidentally end up already solved
+        if tempBoard == solvedBoard {
+            var previousBlankIndex = -1
+            for _ in 0..<2 {
+                let possibleMoves = getValidMoves(for: currentBlankIndex).filter { $0 != previousBlankIndex }
+                if let nextMove = possibleMoves.randomElement() {
+                    tempBoard.swapAt(currentBlankIndex, nextMove)
+                    previousBlankIndex = currentBlankIndex
+                    currentBlankIndex = nextMove
+                }
             }
         }
         
@@ -141,13 +309,14 @@ class GameViewModel {
     
     private func getValidMoves(for blankIndex: Int) -> [Int] {
         var moves: [Int] = []
-        let row = blankIndex / 4
-        let col = blankIndex % 4
+        let dim = dimension
+        let row = blankIndex / dim
+        let col = blankIndex % dim
         
-        if row > 0 { moves.append(blankIndex - 4) } // up
-        if row < 3 { moves.append(blankIndex + 4) } // down
+        if row > 0 { moves.append(blankIndex - dim) } // up
+        if row < dim - 1 { moves.append(blankIndex + dim) } // down
         if col > 0 { moves.append(blankIndex - 1) } // left
-        if col < 3 { moves.append(blankIndex + 1) } // right
+        if col < dim - 1 { moves.append(blankIndex + 1) } // right
         
         return moves
     }

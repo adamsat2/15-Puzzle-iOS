@@ -4,77 +4,223 @@
 //
 
 import SwiftUI
+import TipKit
 
 struct MainView: View {
     @Bindable var viewModel: GameViewModel
     
+    @State private var isShowingLevelPicker: Bool = false
+    @State private var isShowingRestartAlert: Bool = false
+    @State private var pendingLevelSwitch: GameLevel? = nil
+    @State private var levelButtonFrame: CGRect = .zero
+    @State private var containerWidth: CGFloat = 0
+    
+    private let tutorialTip = PuzzleTutorialTip()
+    private let coordinateSpaceName = "MainViewCoordinateSpace"
+    
+    private var isShowingLevelSwitchAlert: Binding<Bool> {
+        Binding(
+            get: { pendingLevelSwitch != nil },
+            set: { if !$0 { pendingLevelSwitch = nil } }
+        )
+    }
+    
+    private var popoverOriginX: CGFloat {
+        let width = LevelPickerView.popoverWidth
+        guard containerWidth > 0 else { return 16 }
+        // Keep the popover balanced horizontally around the Level Selector button without clipping edges
+        let idealX = levelButtonFrame.midX - (width / 2)
+        return min(max(16, idealX), max(16, containerWidth - width - 16))
+    }
+    
+    private var popoverTailCenterFromTrailing: CGFloat {
+        let popoverMaxX = popoverOriginX + LevelPickerView.popoverWidth
+        return popoverMaxX - levelButtonFrame.midX
+    }
+    
+    private var popoverScaleAnchor: UnitPoint {
+        let width = LevelPickerView.popoverWidth
+        let xFraction = (width - popoverTailCenterFromTrailing) / width
+        return UnitPoint(x: min(max(xFraction, 0.1), 0.9), y: 0)
+    }
+    
     var body: some View {
-        VStack(spacing: 24) {
-            HeaderView()
-                .padding(.top, 30)
-            
-            ZStack {
-                if viewModel.isGameWon {
-                    VStack(spacing: 4) {
-                        Text("YOU WIN!")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.yellow)
-                        
-                        if viewModel.isNewRecord {
-                            Text("New Record!")
-                                .font(.subheadline)
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: 12) {
+                HeaderView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 16)
+                
+                // Reserved fixed headroom so "YOU WIN!" and "New Record!" never push the grid
+                ZStack {
+                    if viewModel.isGameWon {
+                        VStack(spacing: 4) {
+                            Text("YOU WIN!")
+                                .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(.pink)
+                                .foregroundColor(.yellow)
+                            
+                            if viewModel.isNewRecord {
+                                Text("New Record!")
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.pink)
+                            }
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .frame(height: 44)
+                
+                TabView {
+                    HStack(spacing: 20) {
+                        StatBoxView(title: "STEPS", value: "\(viewModel.stepCount)")
+                        StatBoxView(title: "BEST", value: viewModel.topRecord == 0 ? "--" : "\(viewModel.topRecord)")
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 38)
+                    
+                    HStack(spacing: 20) {
+                        StatBoxView(title: "TIME", value: viewModel.elapsedTimeString)
+                        StatBoxView(title: "BEST", value: viewModel.bestTimeString)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 38)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+                .indexViewStyle(.page(backgroundDisplayMode: .always))
+                .frame(height: 116)
+                
+                // Board console directly connected beneath the stats/timer, with leftover space at bottom
+                VStack(spacing: 14) {
+                    BoardToolbarView(
+                        isGameWon: viewModel.isGameWon,
+                        coordinateSpaceName: coordinateSpaceName,
+                        onRestartTapped: handleRestartTapped,
+                        onLevelPickerTapped: {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                                isShowingLevelPicker.toggle()
+                            }
+                        },
+                        onColorPaletteTapped: {
+                            // Placeholder slot for upcoming Color Palette selector
+                        },
+                        onNumberSystemTapped: {
+                            // Placeholder slot for upcoming Number System toggle
+                        },
+                        onLevelButtonFrameChange: { frame in
+                            levelButtonFrame = frame
+                        }
+                    )
+                    
+                    GameGridView(viewModel: viewModel)
+                    
+                    if viewModel.selectedLevel == .twoByTwo {
+                        TipView(tutorialTip, arrowEdge: .top)
+                            .tipBackground(Color(.systemGray6))
+                            .tint(Color.mint)
+                            .frame(maxWidth: GameGridView.standardBoardWidth)
+                    }
+                }
+                
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            // Subtle dimming layer so the rest of the app stays visible underneath
+            if isShowingLevelPicker {
+                Color.black.opacity(0.25)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isShowingLevelPicker = false
                         }
                     }
-                    .transition(.scale.combined(with: .opacity))
-                }
-            }
-            .frame(height: 20)
-            
-            TabView {
-                HStack(spacing: 20) {
-                    StatBoxView(title: "STEPS", value: "\(viewModel.stepCount)")
-                    StatBoxView(title: "BEST", value: viewModel.topRecord == 0 ? "--" : "\(viewModel.topRecord)")
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 50)
+                    .transition(.opacity)
+                    .zIndex(1)
                 
-                HStack(spacing: 20) {
-                    StatBoxView(title: "TIME", value: viewModel.elapsedTimeString)
-                    StatBoxView(title: "BEST", value: viewModel.bestTimeString)
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 50)
+                LevelPickerView(
+                    viewModel: viewModel,
+                    tailCenterFromTrailing: popoverTailCenterFromTrailing,
+                    onSelectUnlockedLevel: handleUnlockedLevelSelection
+                )
+                .offset(
+                    x: popoverOriginX,
+                    y: levelButtonFrame.maxY + 2
+                )
+                .transition(
+                    .scale(scale: 0.88, anchor: popoverScaleAnchor)
+                    .combined(with: .opacity)
+                )
+                .zIndex(2)
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-            .indexViewStyle(.page(backgroundDisplayMode: .always)) // Ensures the dots are clearly visible against any background
-            .frame(minHeight: 120, idealHeight: 130, maxHeight: 150)
-            
-            GameGridView(viewModel: viewModel)
-            
-            Spacer()
-            
-            Button(action: {
-                SoundManager.shared.playSound(soundName: "tap")
-                viewModel.startNewGame()
-            }) {
-                Text(viewModel.isGameWon ? "Play Again" : "Restart Game")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        Color.mint
-                    )
-                    .clipShape(.capsule)
-            }
-            .padding(.horizontal, 30)
-            .padding(.bottom, 30)
+        }
+        .coordinateSpace(name: coordinateSpaceName)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { newWidth in
+            containerWidth = newWidth
         }
         .onAppear {
-            viewModel.startNewGame(animated: false)
+            PuzzleTutorialTip.isShowingTutorialLevel = (viewModel.selectedLevel == .twoByTwo)
+        }
+        .alert("Restart Game?", isPresented: $isShowingRestartAlert) {
+            Button("Restart", role: .destructive) {
+                viewModel.startNewGame()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your current progress will be lost.")
+        }
+        .alert(
+            "Switch to \(pendingLevelSwitch?.title ?? "")?",
+            isPresented: isShowingLevelSwitchAlert
+        ) {
+            Button("Switch", role: .destructive) {
+                if let level = pendingLevelSwitch {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.selectLevel(level)
+                    }
+                }
+                pendingLevelSwitch = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingLevelSwitch = nil
+            }
+        } message: {
+            Text("Your current progress will be lost.")
+        }
+    }
+    
+    private func handleRestartTapped() {
+        if isShowingLevelPicker {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isShowingLevelPicker = false
+            }
+        }
+        
+        if viewModel.hasActiveRun {
+            isShowingRestartAlert = true
+        } else {
+            viewModel.startNewGame()
+        }
+    }
+    
+    private func handleUnlockedLevelSelection(_ level: GameLevel) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isShowingLevelPicker = false
+        }
+        
+        guard level != viewModel.selectedLevel else { return }
+        
+        if viewModel.hasActiveRun {
+            pendingLevelSwitch = level
+        } else {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                viewModel.selectLevel(level)
+            }
         }
     }
 }

@@ -9,10 +9,7 @@ struct ContentView: View {
     @State private var viewModel = GameViewModel()
     
     var body: some View {
-        VStack {
-            MainView(viewModel: viewModel)
-        }
-        .padding()
+        MainView(viewModel: viewModel)
     }
 }
 
