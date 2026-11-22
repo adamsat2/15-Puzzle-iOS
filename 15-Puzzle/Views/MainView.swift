@@ -16,6 +16,8 @@ struct MainView: View {
     @State private var containerWidth: CGFloat = 0
     @State private var replayHighlightTrigger: Int = 0
     @State private var levelPickerHighlightTrigger: Int = 0
+    @State private var isShowingHexUnavailableHint: Bool = false
+    @State private var hexHintDismissTask: Task<Void, Never>? = nil
     
     @State private var postTutorialTips = TipGroup(.ordered) {
         ReplayTip()
@@ -102,6 +104,8 @@ struct MainView: View {
                 VStack(spacing: 14) {
                     BoardToolbarView(
                         isGameWon: viewModel.isGameWon,
+                        isHexMode: viewModel.isHexMode,
+                        isHexAvailable: viewModel.isHexAvailable,
                         coordinateSpaceName: coordinateSpaceName,
                         replayTip: postTutorialTips.currentTip as? ReplayTip,
                         levelSelectionTip: postTutorialTips.currentTip as? LevelSelectionTip,
@@ -112,9 +116,7 @@ struct MainView: View {
                         onColorPaletteTapped: {
                             // Placeholder slot for upcoming Color Palette selector
                         },
-                        onNumberSystemTapped: {
-                            // Placeholder slot for upcoming Number System toggle
-                        },
+                        onHexToggleTapped: handleHexToggleTapped,
                         onLevelButtonFrameChange: { frame in
                             levelButtonFrame = frame
                         }
@@ -135,6 +137,37 @@ struct MainView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            // Contextual hint when tapping HEX on 2×2 or 3×3 boards
+            if isShowingHexUnavailableHint {
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.mint)
+                    
+                    Text("Hex mode is available on 4×4 and larger")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color(.separator), lineWidth: 1)
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+                .offset(y: levelButtonFrame.maxY + 8)
+                .allowsHitTesting(false)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(3)
+            }
             
             // Subtle dimming layer so the rest of the app stays visible underneath
             if isShowingLevelPicker {
@@ -169,6 +202,12 @@ struct MainView: View {
             proxy.size.width
         } action: { newWidth in
             containerWidth = newWidth
+        }
+        .onChange(of: viewModel.selectedLevel) { _, _ in
+            dismissHexUnavailableHint()
+        }
+        .onDisappear {
+            hexHintDismissTask?.cancel()
         }
         .task {
             for await tip in postTutorialTips.currentTipUpdates {
@@ -208,6 +247,8 @@ struct MainView: View {
     }
     
     private func handleRestartTapped() {
+        dismissHexUnavailableHint()
+        
         if viewModel.isLevelCompleted(.twoByTwo) {
             Task.detached(priority: .userInitiated) {
                 ReplayTip().invalidate(reason: .actionPerformed)
@@ -228,12 +269,47 @@ struct MainView: View {
     }
     
     private func handleLevelPickerTapped() {
+        dismissHexUnavailableHint()
+        
         Task.detached(priority: .userInitiated) {
             LevelSelectionTip().invalidate(reason: .actionPerformed)
         }
         
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
             isShowingLevelPicker.toggle()
+        }
+    }
+    
+    private func handleHexToggleTapped() {
+        if viewModel.isHexAvailable {
+            dismissHexUnavailableHint()
+            withAnimation(.easeInOut(duration: 0.2)) {
+                viewModel.toggleHexMode()
+            }
+        } else {
+            showHexUnavailableHint()
+        }
+    }
+    
+    private func showHexUnavailableHint() {
+        hexHintDismissTask?.cancel()
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+            isShowingHexUnavailableHint = true
+        }
+        hexHintDismissTask = Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isShowingHexUnavailableHint = false
+            }
+        }
+    }
+    
+    private func dismissHexUnavailableHint() {
+        hexHintDismissTask?.cancel()
+        guard isShowingHexUnavailableHint else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isShowingHexUnavailableHint = false
         }
     }
     

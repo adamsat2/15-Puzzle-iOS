@@ -43,7 +43,11 @@ struct GameGridView: View {
     var body: some View {
         LazyVGrid(columns: columns, spacing: spacing) {
             ForEach(viewModel.board, id: \.self) { number in
-                TileView(number: number, dimension: viewModel.dimension)
+                TileView(
+                    number: number,
+                    dimension: viewModel.dimension,
+                    isHexMode: viewModel.isHexActiveOnBoard
+                )
                     .onTapGesture {
                         viewModel.move(number: number)
                     }

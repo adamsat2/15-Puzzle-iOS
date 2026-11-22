@@ -8,6 +8,8 @@ import TipKit
 
 struct BoardToolbarView: View {
     let isGameWon: Bool
+    let isHexMode: Bool
+    let isHexAvailable: Bool
     let coordinateSpaceName: String
     let replayTip: ReplayTip?
     let levelSelectionTip: LevelSelectionTip?
@@ -16,13 +18,17 @@ struct BoardToolbarView: View {
     let onRestartTapped: () -> Void
     let onLevelPickerTapped: () -> Void
     let onColorPaletteTapped: () -> Void
-    let onNumberSystemTapped: () -> Void
+    let onHexToggleTapped: () -> Void
     let onLevelButtonFrameChange: (CGRect) -> Void
     
     private static let pillButtonWidth: CGFloat = 42
     private static let pillButtonHeight: CGFloat = 44
     private static let pillButtonSpacing: CGFloat = 4
     private static let pillHorizontalPadding: CGFloat = 6
+    
+    private var isHexBadgeActive: Bool {
+        isHexAvailable && isHexMode
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -51,7 +57,7 @@ struct BoardToolbarView: View {
             .tipImageStyle(Color.mint)
             
             // Group 2: Grouped Customization Pill
-            // Slots: [Level Selector] [Color Palette (placeholder)] [Number System Toggle (placeholder)]
+            // Slots: [Level Selector] [Color Palette (placeholder)] [HEX Toggle]
             HStack(spacing: Self.pillButtonSpacing) {
                 Button {
                     SoundManager.shared.playSound(soundName: "tap")
@@ -93,15 +99,26 @@ struct BoardToolbarView: View {
                 
                 Button {
                     SoundManager.shared.playSound(soundName: "tap")
-                    onNumberSystemTapped()
+                    onHexToggleTapped()
                 } label: {
-                    Image(systemName: "textformat.123")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Color.mint)
-                        .frame(width: Self.pillButtonWidth, height: Self.pillButtonHeight)
-                        .contentShape(Rectangle())
+                    HexToggleIcon(
+                        isActive: isHexBadgeActive,
+                        isAvailable: isHexAvailable
+                    )
+                    .frame(width: Self.pillButtonWidth, height: Self.pillButtonHeight)
+                    .contentShape(Rectangle())
                 }
-                .accessibilityLabel("Number System")
+                .accessibilityLabel("Hexadecimal Numbers")
+                .accessibilityValue(
+                    !isHexAvailable
+                        ? "Unavailable on this grid size"
+                        : (isHexMode ? "On" : "Off")
+                )
+                .accessibilityHint(
+                    isHexAvailable
+                        ? "Toggles tile labels between decimal and hexadecimal"
+                        : "Available on 4 by 4 and larger grids"
+                )
             }
             .padding(.horizontal, Self.pillHorizontalPadding)
             .background(
@@ -110,6 +127,40 @@ struct BoardToolbarView: View {
             )
         }
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+}
+
+private struct HexToggleIcon: View {
+    let isActive: Bool
+    let isAvailable: Bool
+    
+    private var foregroundColor: Color {
+        if !isAvailable {
+            return .secondary
+        }
+        return isActive ? Color(.systemBackground) : Color.mint
+    }
+    
+    private var borderColor: Color {
+        isAvailable ? Color.mint : Color(.tertiaryLabel)
+    }
+    
+    var body: some View {
+        Text("HEX")
+            .font(.system(size: 11, weight: .heavy, design: .rounded))
+            .fixedSize()
+            .foregroundStyle(foregroundColor)
+            .frame(width: 32, height: 22)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isActive ? Color.mint : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(borderColor, lineWidth: 1.5)
+            )
+            .animation(.easeInOut(duration: 0.2), value: isActive)
+            .animation(.easeInOut(duration: 0.2), value: isAvailable)
     }
 }
 
@@ -169,18 +220,52 @@ private struct MovingMintHighlightOverlay: View {
 }
 
 #Preview {
-    BoardToolbarView(
-        isGameWon: false,
-        coordinateSpaceName: "PreviewSpace",
-        replayTip: nil,
-        levelSelectionTip: nil,
-        replayHighlightTrigger: 0,
-        levelPickerHighlightTrigger: 0,
-        onRestartTapped: {},
-        onLevelPickerTapped: {},
-        onColorPaletteTapped: {},
-        onNumberSystemTapped: {},
-        onLevelButtonFrameChange: { _ in }
-    )
+    VStack(spacing: 16) {
+        BoardToolbarView(
+            isGameWon: false,
+            isHexMode: false,
+            isHexAvailable: false,
+            coordinateSpaceName: "PreviewSpace1",
+            replayTip: nil,
+            levelSelectionTip: nil,
+            replayHighlightTrigger: 0,
+            levelPickerHighlightTrigger: 0,
+            onRestartTapped: {},
+            onLevelPickerTapped: {},
+            onColorPaletteTapped: {},
+            onHexToggleTapped: {},
+            onLevelButtonFrameChange: { _ in }
+        )
+        BoardToolbarView(
+            isGameWon: false,
+            isHexMode: false,
+            isHexAvailable: true,
+            coordinateSpaceName: "PreviewSpace2",
+            replayTip: nil,
+            levelSelectionTip: nil,
+            replayHighlightTrigger: 0,
+            levelPickerHighlightTrigger: 0,
+            onRestartTapped: {},
+            onLevelPickerTapped: {},
+            onColorPaletteTapped: {},
+            onHexToggleTapped: {},
+            onLevelButtonFrameChange: { _ in }
+        )
+        BoardToolbarView(
+            isGameWon: false,
+            isHexMode: true,
+            isHexAvailable: true,
+            coordinateSpaceName: "PreviewSpace3",
+            replayTip: nil,
+            levelSelectionTip: nil,
+            replayHighlightTrigger: 0,
+            levelPickerHighlightTrigger: 0,
+            onRestartTapped: {},
+            onLevelPickerTapped: {},
+            onColorPaletteTapped: {},
+            onHexToggleTapped: {},
+            onLevelButtonFrameChange: { _ in }
+        )
+    }
     .padding()
 }

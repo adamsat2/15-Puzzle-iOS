@@ -18,6 +18,7 @@ enum GameLevel: Int, CaseIterable, Identifiable {
     var totalTiles: Int { dimension * dimension }
     var title: String { "\(dimension)×\(dimension)" }
     var tileRangeDescription: String { "1 - \(totalTiles - 1)" }
+    var supportsHexMode: Bool { dimension >= 4 }
     
     var stepRecordKey: String {
         dimension == 4 ? "Top15PuzzleRecord" : "Top15PuzzleRecord_\(dimension)x\(dimension)"
@@ -31,12 +32,18 @@ enum GameLevel: Int, CaseIterable, Identifiable {
 @Observable
 class GameViewModel {
     private static let lastSelectedLevelKey = "LastSelectedPuzzleLevel"
+    private static let isHexModeKey = "IsHexModeEnabled"
     
     var selectedLevel: GameLevel = .twoByTwo
     var board: [Int] = Array(1...4)
     var isGameWon: Bool = false
     var stepCount: Int = 0
     var isNewRecord: Bool = false
+    var isHexMode: Bool = false {
+        didSet {
+            UserDefaults.standard.set(isHexMode, forKey: Self.isHexModeKey)
+        }
+    }
     
     private let timeManager = TimeManager()
     var elapsedTimeString: String = "00:00"
@@ -49,6 +56,14 @@ class GameViewModel {
     
     var totalTiles: Int {
         selectedLevel.totalTiles
+    }
+    
+    var isHexAvailable: Bool {
+        selectedLevel.supportsHexMode
+    }
+    
+    var isHexActiveOnBoard: Bool {
+        isHexMode && isHexAvailable
     }
     
     var hasActiveRun: Bool {
@@ -83,8 +98,14 @@ class GameViewModel {
     }
     
     init() {
+        isHexMode = UserDefaults.standard.bool(forKey: Self.isHexModeKey)
         selectedLevel = Self.initialLevel()
         startNewGame(animated: false)
+    }
+    
+    func toggleHexMode() {
+        guard isHexAvailable else { return }
+        isHexMode.toggle()
     }
     
     private static func initialLevel() -> GameLevel {

@@ -8,9 +8,14 @@ import SwiftUI
 struct TileView: View {
     let number: Int
     var dimension: Int = 4
+    var isHexMode: Bool = false
     
     private var isBlank: Bool {
         number == dimension * dimension
+    }
+    
+    private var displayText: String {
+        isHexMode ? String(number, radix: 16, uppercase: true) : "\(number)"
     }
     
     private var cornerRadius: CGFloat {
@@ -38,11 +43,12 @@ struct TileView: View {
                     .fill(Color(.systemBackground))
                     .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
                 
-                Text("\(number)")
+                Text(displayText)
                     .font(.system(size: fontSize, weight: .bold, design: .rounded))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
                     .foregroundColor(.mint)
+                    .contentTransition(.opacity)
                     .padding(4)
             } else {
                 RoundedRectangle(cornerRadius: cornerRadius)
@@ -54,5 +60,9 @@ struct TileView: View {
 }
 
 #Preview {
-    TileView(number: 3, dimension: 4)
+    HStack(spacing: 12) {
+        TileView(number: 15, dimension: 4, isHexMode: false)
+        TileView(number: 15, dimension: 4, isHexMode: true)
+    }
+    .padding()
 }
