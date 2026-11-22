@@ -84,7 +84,6 @@ class GameViewModel {
     
     init() {
         selectedLevel = Self.initialLevel()
-        PuzzleTutorialTip.isShowingTutorialLevel = (selectedLevel == .twoByTwo)
         startNewGame(animated: false)
     }
     
@@ -176,7 +175,6 @@ class GameViewModel {
         guard isLevelUnlocked(level), level != selectedLevel else { return }
         selectedLevel = level
         UserDefaults.standard.set(level.rawValue, forKey: Self.lastSelectedLevelKey)
-        PuzzleTutorialTip.isShowingTutorialLevel = (level == .twoByTwo)
         startNewGame(animated: false)
     }
     
@@ -234,9 +232,7 @@ class GameViewModel {
             isGameWon = true
         }
         
-        if selectedLevel == .twoByTwo {
-            PuzzleTutorialTip().invalidate(reason: .actionPerformed)
-        }
+        let wonTutorialLevel = (selectedLevel == .twoByTwo)
         
         let currentStepRecord = topRecord
         let currentTimeRecord = bestTimeRecord
@@ -258,6 +254,17 @@ class GameViewModel {
             SoundManager.shared.playSound(soundName: "newrecord")
         } else {
             SoundManager.shared.playSound(soundName: "win")
+        }
+        
+        if wonTutorialLevel {
+            // Defer TipKit datastore updates until after the winning tile animation lands
+            // and stagger inline TipView dismissal before presenting the Replay popover tip.
+            Task.detached(priority: .userInitiated) {
+                try? await Task.sleep(for: .milliseconds(350))
+                PuzzleTutorialTip().invalidate(reason: .actionPerformed)
+                try? await Task.sleep(for: .milliseconds(150))
+                await PuzzleTutorialTip.tutorialCompleted.donate()
+            }
         }
     }
     

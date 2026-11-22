@@ -14,6 +14,13 @@ struct MainView: View {
     @State private var pendingLevelSwitch: GameLevel? = nil
     @State private var levelButtonFrame: CGRect = .zero
     @State private var containerWidth: CGFloat = 0
+    @State private var replayHighlightTrigger: Int = 0
+    @State private var levelPickerHighlightTrigger: Int = 0
+    
+    @State private var postTutorialTips = TipGroup(.ordered) {
+        ReplayTip()
+        LevelSelectionTip()
+    }
     
     private let tutorialTip = PuzzleTutorialTip()
     private let coordinateSpaceName = "MainViewCoordinateSpace"
@@ -96,12 +103,12 @@ struct MainView: View {
                     BoardToolbarView(
                         isGameWon: viewModel.isGameWon,
                         coordinateSpaceName: coordinateSpaceName,
+                        replayTip: postTutorialTips.currentTip as? ReplayTip,
+                        levelSelectionTip: postTutorialTips.currentTip as? LevelSelectionTip,
+                        replayHighlightTrigger: replayHighlightTrigger,
+                        levelPickerHighlightTrigger: levelPickerHighlightTrigger,
                         onRestartTapped: handleRestartTapped,
-                        onLevelPickerTapped: {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                                isShowingLevelPicker.toggle()
-                            }
-                        },
+                        onLevelPickerTapped: handleLevelPickerTapped,
                         onColorPaletteTapped: {
                             // Placeholder slot for upcoming Color Palette selector
                         },
@@ -118,7 +125,7 @@ struct MainView: View {
                     if viewModel.selectedLevel == .twoByTwo {
                         TipView(tutorialTip, arrowEdge: .top)
                             .tipBackground(Color(.systemGray6))
-                            .tint(Color.mint)
+                            .tipImageStyle(Color.mint)
                             .frame(maxWidth: GameGridView.standardBoardWidth)
                     }
                 }
@@ -163,8 +170,14 @@ struct MainView: View {
         } action: { newWidth in
             containerWidth = newWidth
         }
-        .onAppear {
-            PuzzleTutorialTip.isShowingTutorialLevel = (viewModel.selectedLevel == .twoByTwo)
+        .task {
+            for await tip in postTutorialTips.currentTipUpdates {
+                if tip is ReplayTip {
+                    replayHighlightTrigger += 1
+                } else if tip is LevelSelectionTip {
+                    levelPickerHighlightTrigger += 1
+                }
+            }
         }
         .alert("Restart Game?", isPresented: $isShowingRestartAlert) {
             Button("Restart", role: .destructive) {
@@ -195,6 +208,12 @@ struct MainView: View {
     }
     
     private func handleRestartTapped() {
+        if viewModel.isLevelCompleted(.twoByTwo) {
+            Task.detached(priority: .userInitiated) {
+                ReplayTip().invalidate(reason: .actionPerformed)
+            }
+        }
+        
         if isShowingLevelPicker {
             withAnimation(.easeInOut(duration: 0.2)) {
                 isShowingLevelPicker = false
@@ -205,6 +224,16 @@ struct MainView: View {
             isShowingRestartAlert = true
         } else {
             viewModel.startNewGame()
+        }
+    }
+    
+    private func handleLevelPickerTapped() {
+        Task.detached(priority: .userInitiated) {
+            LevelSelectionTip().invalidate(reason: .actionPerformed)
+        }
+        
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            isShowingLevelPicker.toggle()
         }
     }
     

@@ -45,9 +45,7 @@ struct GameGridView: View {
             ForEach(viewModel.board, id: \.self) { number in
                 TileView(number: number, dimension: viewModel.dimension)
                     .onTapGesture {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0)) {
-                            viewModel.move(number: number)
-                        }
+                        viewModel.move(number: number)
                     }
                     // swipe
                     .gesture(
@@ -55,9 +53,7 @@ struct GameGridView: View {
                             .onChanged { _ in
                                 if activeSwipeTile != number {
                                     activeSwipeTile = number
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0)) {
-                                        viewModel.move(number: number)
-                                    }
+                                    viewModel.move(number: number)
                                 }
                             }
                             .onEnded { _ in

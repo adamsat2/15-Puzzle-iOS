@@ -7,8 +7,7 @@ import SwiftUI
 import TipKit
 
 struct PuzzleTutorialTip: Tip {
-    @Parameter
-    static var isShowingTutorialLevel: Bool = false
+    static let tutorialCompleted = Tips.Event(id: "tutorialCompleted")
     
     var title: Text {
         Text("How to Play")
@@ -22,9 +21,51 @@ struct PuzzleTutorialTip: Tip {
         Image(systemName: "hand.tap.fill")
     }
     
+    var options: [any Option] {
+        IgnoresDisplayFrequency(true)
+    }
+}
+
+struct ReplayTip: Tip {
+    var title: Text {
+        Text("Play Again")
+    }
+    
+    var message: Text? {
+        Text("Tap here anytime to start a new round or reshuffle the board.")
+    }
+    
+    var image: Image? {
+        Image(systemName: "arrow.counterclockwise")
+    }
+    
     var rules: [Rule] {
-        #Rule(Self.$isShowingTutorialLevel) {
-            $0 == true
+        #Rule(PuzzleTutorialTip.tutorialCompleted) {
+            $0.donations.count >= 1
+        }
+    }
+    
+    var options: [any Option] {
+        IgnoresDisplayFrequency(true)
+    }
+}
+
+struct LevelSelectionTip: Tip {
+    var title: Text {
+        Text("Choose a Grid Size")
+    }
+    
+    var message: Text? {
+        Text("Tap here to try 3×3 or 4×4, and complete them to unlock 5×5 and 6×6.")
+    }
+    
+    var image: Image? {
+        Image(systemName: "square.grid.2x2.fill")
+    }
+    
+    var rules: [Rule] {
+        #Rule(PuzzleTutorialTip.tutorialCompleted) {
+            $0.donations.count >= 1
         }
     }
     
