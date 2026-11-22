@@ -46,7 +46,8 @@ struct GameGridView: View {
                 TileView(
                     number: number,
                     dimension: viewModel.dimension,
-                    isHexMode: viewModel.isHexActiveOnBoard
+                    isHexMode: viewModel.isHexActiveOnBoard,
+                    primaryColor: viewModel.selectedPalette.primary
                 )
                     .onTapGesture {
                         viewModel.move(number: number)

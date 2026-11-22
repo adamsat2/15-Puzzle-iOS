@@ -33,6 +33,7 @@ enum GameLevel: Int, CaseIterable, Identifiable {
 class GameViewModel {
     private static let lastSelectedLevelKey = "LastSelectedPuzzleLevel"
     private static let isHexModeKey = "IsHexModeEnabled"
+    private static let selectedPaletteKey = "SelectedColorPaletteID"
     
     var selectedLevel: GameLevel = .twoByTwo
     var board: [Int] = Array(1...4)
@@ -42,6 +43,11 @@ class GameViewModel {
     var isHexMode: Bool = false {
         didSet {
             UserDefaults.standard.set(isHexMode, forKey: Self.isHexModeKey)
+        }
+    }
+    var selectedPalette: ColorPalette = .mint {
+        didSet {
+            UserDefaults.standard.set(selectedPalette.id, forKey: Self.selectedPaletteKey)
         }
     }
     
@@ -99,6 +105,8 @@ class GameViewModel {
     
     init() {
         isHexMode = UserDefaults.standard.bool(forKey: Self.isHexModeKey)
+        let savedPaletteID = UserDefaults.standard.string(forKey: Self.selectedPaletteKey)
+        selectedPalette = ColorPalette.palette(forID: savedPaletteID)
         selectedLevel = Self.initialLevel()
         startNewGame(animated: false)
     }
@@ -106,6 +114,11 @@ class GameViewModel {
     func toggleHexMode() {
         guard isHexAvailable else { return }
         isHexMode.toggle()
+    }
+    
+    func selectPalette(_ palette: ColorPalette) {
+        guard palette.isUnlocked, palette != selectedPalette else { return }
+        selectedPalette = palette
     }
     
     private static func initialLevel() -> GameLevel {

@@ -31,7 +31,7 @@ struct PopoverBubbleShape: Shape {
         // Start at top-left after corner
         path.move(to: CGPoint(x: bodyRect.minX + cornerRadius, y: bodyRect.minY))
         
-        // Nub/tail connected to the level selector button
+        // Nub/tail connected to the anchor toolbar button
         path.addLine(to: CGPoint(x: tailLeftX, y: bodyRect.minY))
         path.addLine(to: CGPoint(x: tailCenterX, y: rect.minY))
         path.addLine(to: CGPoint(x: tailRightX, y: bodyRect.minY))
@@ -71,15 +71,25 @@ struct PopoverBubbleShape: Shape {
 
 struct LevelPickerView: View {
     @Bindable var viewModel: GameViewModel
+    var primaryColor: Color = .mint
     var tailCenterFromTrailing: CGFloat = 143
     let onSelectUnlockedLevel: (GameLevel) -> Void
     
+    @Environment(\.colorScheme) private var colorScheme
     @State private var lockedHintMessage: String? = nil
     @State private var hintDismissTask: Task<Void, Never>? = nil
     
     private let rows = [GridItem(.fixed(90))]
     private let tailHeight: CGFloat = 9
     static let popoverWidth: CGFloat = 286
+    
+    private var popoverSurface: Color {
+        colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.systemBackground)
+    }
+    
+    private var cardSurface: Color {
+        colorScheme == .dark ? Color(.tertiarySystemBackground) : Color(.systemGray6)
+    }
     
     private var bubbleShape: PopoverBubbleShape {
         PopoverBubbleShape(
@@ -101,7 +111,9 @@ struct LevelPickerView: View {
                                 level: level,
                                 isSelected: viewModel.selectedLevel == level,
                                 isCompleted: viewModel.isLevelCompleted(level),
-                                isUnlocked: isUnlocked
+                                isUnlocked: isUnlocked,
+                                primaryColor: primaryColor,
+                                cardSurface: cardSurface
                             )
                             .id(level)
                             .onTapGesture {
@@ -130,8 +142,8 @@ struct LevelPickerView: View {
             .frame(width: Self.popoverWidth, height: 114 + tailHeight)
             .background(
                 bubbleShape
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 6)
+                    .fill(popoverSurface)
+                    .shadow(color: .black.opacity(0.22), radius: 12, x: 0, y: 6)
             )
             .clipShape(bubbleShape)
             .overlay(
@@ -143,7 +155,7 @@ struct LevelPickerView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "lock.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.mint)
+                        .foregroundStyle(primaryColor)
                     
                     Text(message)
                         .font(.caption.weight(.semibold))
@@ -154,7 +166,7 @@ struct LevelPickerView: View {
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
-                        .fill(Color(.systemBackground))
+                        .fill(popoverSurface)
                         .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
                 )
                 .overlay(
@@ -189,13 +201,16 @@ private struct LevelCardView: View {
     let isSelected: Bool
     let isCompleted: Bool
     let isUnlocked: Bool
+    let primaryColor: Color
+    let cardSurface: Color
     
     var body: some View {
         VStack(spacing: 6) {
             ZStack {
                 MiniMatrixPreview(
                     dimension: level.dimension,
-                    isUnlocked: isUnlocked
+                    isUnlocked: isUnlocked,
+                    primaryColor: primaryColor
                 )
                 .frame(width: 38, height: 38)
                 .opacity(isUnlocked ? 1 : 0.6)
@@ -215,29 +230,29 @@ private struct LevelCardView: View {
         .frame(width: 78, height: 86)
         .background(
             RoundedRectangle(cornerRadius: 13)
-                .fill(Color(.systemGray6))
+                .fill(cardSurface)
         )
         .overlay(alignment: .bottomTrailing) {
             if isCompleted {
                 ZStack {
                     Circle()
-                        .fill(Color.mint)
+                        .fill(primaryColor)
                         .frame(width: 17, height: 17)
                     
                     Image(systemName: "checkmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color(.systemBackground))
                 }
                 .padding(5)
             }
         }
         .overlay(
             RoundedRectangle(cornerRadius: 13)
-                .stroke(isSelected ? Color.mint : Color.clear, lineWidth: 2)
+                .stroke(isSelected ? primaryColor : Color.clear, lineWidth: 2)
         )
         .shadow(
-            color: isSelected ? Color.mint : Color.clear,
-            radius: isSelected ? 4 : 0,
+            color: isSelected ? primaryColor.opacity(0.15) : Color.clear,
+            radius: isSelected ? 2 : 0,
             x: 0,
             y: 0
         )
@@ -247,13 +262,14 @@ private struct LevelCardView: View {
         if !isUnlocked {
             return .secondary
         }
-        return isSelected ? .mint : .primary
+        return isSelected ? primaryColor : .primary
     }
 }
 
 private struct MiniMatrixPreview: View {
     let dimension: Int
     let isUnlocked: Bool
+    let primaryColor: Color
     
     var body: some View {
         let spacing: CGFloat = dimension >= 5 ? 1.5 : 2
@@ -279,7 +295,7 @@ private struct MiniMatrixPreview: View {
         if isLast {
             return .clear
         }
-        return isUnlocked ? .mint : Color(.systemGray3)
+        return isUnlocked ? primaryColor : Color(.systemGray3)
     }
 }
 

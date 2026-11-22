@@ -9,6 +9,7 @@ struct TileView: View {
     let number: Int
     var dimension: Int = 4
     var isHexMode: Bool = false
+    var primaryColor: Color = .mint
     
     private var isBlank: Bool {
         number == dimension * dimension
@@ -47,7 +48,7 @@ struct TileView: View {
                     .font(.system(size: fontSize, weight: .bold, design: .rounded))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                    .foregroundColor(.mint)
+                    .foregroundStyle(primaryColor)
                     .contentTransition(.opacity)
                     .padding(4)
             } else {
@@ -61,8 +62,8 @@ struct TileView: View {
 
 #Preview {
     HStack(spacing: 12) {
-        TileView(number: 15, dimension: 4, isHexMode: false)
-        TileView(number: 15, dimension: 4, isHexMode: true)
+        TileView(number: 15, dimension: 4, isHexMode: false, primaryColor: .mint)
+        TileView(number: 15, dimension: 4, isHexMode: true, primaryColor: .purple)
     }
     .padding()
 }

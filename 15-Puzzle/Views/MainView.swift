@@ -7,12 +7,19 @@ import SwiftUI
 import TipKit
 
 struct MainView: View {
+    private enum ActivePopover {
+        case levelPicker
+        case colorPalette
+    }
+    
     @Bindable var viewModel: GameViewModel
     
-    @State private var isShowingLevelPicker: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var activePopover: ActivePopover? = nil
     @State private var isShowingRestartAlert: Bool = false
     @State private var pendingLevelSwitch: GameLevel? = nil
     @State private var levelButtonFrame: CGRect = .zero
+    @State private var paletteButtonFrame: CGRect = .zero
     @State private var containerWidth: CGFloat = 0
     @State private var replayHighlightTrigger: Int = 0
     @State private var levelPickerHighlightTrigger: Int = 0
@@ -27,6 +34,10 @@ struct MainView: View {
     private let tutorialTip = PuzzleTutorialTip()
     private let coordinateSpaceName = "MainViewCoordinateSpace"
     
+    private var elevatedSurface: Color {
+        colorScheme == .dark ? Color(.secondarySystemBackground) : Color(.systemBackground)
+    }
+    
     private var isShowingLevelSwitchAlert: Binding<Bool> {
         Binding(
             get: { pendingLevelSwitch != nil },
@@ -34,29 +45,28 @@ struct MainView: View {
         )
     }
     
-    private var popoverOriginX: CGFloat {
-        let width = LevelPickerView.popoverWidth
+    private func popoverOriginX(for anchorFrame: CGRect, width: CGFloat) -> CGFloat {
         guard containerWidth > 0 else { return 16 }
-        // Keep the popover balanced horizontally around the Level Selector button without clipping edges
-        let idealX = levelButtonFrame.midX - (width / 2)
+        // Keep the popover balanced horizontally around its anchor button without clipping edges
+        let idealX = anchorFrame.midX - (width / 2)
         return min(max(16, idealX), max(16, containerWidth - width - 16))
     }
     
-    private var popoverTailCenterFromTrailing: CGFloat {
-        let popoverMaxX = popoverOriginX + LevelPickerView.popoverWidth
-        return popoverMaxX - levelButtonFrame.midX
+    private func popoverTailCenterFromTrailing(for anchorFrame: CGRect, width: CGFloat) -> CGFloat {
+        let popoverMaxX = popoverOriginX(for: anchorFrame, width: width) + width
+        return popoverMaxX - anchorFrame.midX
     }
     
-    private var popoverScaleAnchor: UnitPoint {
-        let width = LevelPickerView.popoverWidth
-        let xFraction = (width - popoverTailCenterFromTrailing) / width
+    private func popoverScaleAnchor(for anchorFrame: CGRect, width: CGFloat) -> UnitPoint {
+        let tailFromTrailing = popoverTailCenterFromTrailing(for: anchorFrame, width: width)
+        let xFraction = (width - tailFromTrailing) / width
         return UnitPoint(x: min(max(xFraction, 0.1), 0.9), y: 0)
     }
     
     var body: some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 12) {
-                HeaderView()
+                HeaderView(primaryColor: viewModel.selectedPalette.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 16)
                 
@@ -67,13 +77,13 @@ struct MainView: View {
                             Text("YOU WIN!")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(.yellow)
+                                .foregroundStyle(viewModel.selectedPalette.winText)
                             
                             if viewModel.isNewRecord {
-                                Text("New Record!")
+                                Text("NEW RECORD!")
                                     .font(.subheadline)
                                     .fontWeight(.bold)
-                                    .foregroundColor(.pink)
+                                    .foregroundStyle(viewModel.selectedPalette.recordText)
                             }
                         }
                         .transition(.scale.combined(with: .opacity))
@@ -106,6 +116,7 @@ struct MainView: View {
                         isGameWon: viewModel.isGameWon,
                         isHexMode: viewModel.isHexMode,
                         isHexAvailable: viewModel.isHexAvailable,
+                        primaryColor: viewModel.selectedPalette.primary,
                         coordinateSpaceName: coordinateSpaceName,
                         replayTip: postTutorialTips.currentTip as? ReplayTip,
                         levelSelectionTip: postTutorialTips.currentTip as? LevelSelectionTip,
@@ -113,12 +124,13 @@ struct MainView: View {
                         levelPickerHighlightTrigger: levelPickerHighlightTrigger,
                         onRestartTapped: handleRestartTapped,
                         onLevelPickerTapped: handleLevelPickerTapped,
-                        onColorPaletteTapped: {
-                            // Placeholder slot for upcoming Color Palette selector
-                        },
+                        onColorPaletteTapped: handleColorPaletteTapped,
                         onHexToggleTapped: handleHexToggleTapped,
                         onLevelButtonFrameChange: { frame in
                             levelButtonFrame = frame
+                        },
+                        onPaletteButtonFrameChange: { frame in
+                            paletteButtonFrame = frame
                         }
                     )
                     
@@ -127,7 +139,7 @@ struct MainView: View {
                     if viewModel.selectedLevel == .twoByTwo {
                         TipView(tutorialTip, arrowEdge: .top)
                             .tipBackground(Color(.systemGray6))
-                            .tipImageStyle(Color.mint)
+                            .tipImageStyle(viewModel.selectedPalette.primary)
                             .frame(maxWidth: GameGridView.standardBoardWidth)
                     }
                 }
@@ -143,7 +155,7 @@ struct MainView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "info.circle.fill")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Color.mint)
+                        .foregroundStyle(viewModel.selectedPalette.primary)
                     
                     Text("Hex mode is available on 4×4 and larger")
                         .font(.caption.weight(.semibold))
@@ -154,7 +166,7 @@ struct MainView: View {
                 .padding(.vertical, 8)
                 .background(
                     Capsule()
-                        .fill(Color(.systemBackground))
+                        .fill(elevatedSurface)
                         .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
                 )
                 .overlay(
@@ -170,28 +182,50 @@ struct MainView: View {
             }
             
             // Subtle dimming layer so the rest of the app stays visible underneath
-            if isShowingLevelPicker {
+            if activePopover != nil {
                 Color.black.opacity(0.25)
                     .ignoresSafeArea()
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.2)) {
-                            isShowingLevelPicker = false
+                            activePopover = nil
                         }
                     }
                     .transition(.opacity)
                     .zIndex(1)
-                
+            }
+            
+            if activePopover == .levelPicker {
+                let width = LevelPickerView.popoverWidth
                 LevelPickerView(
                     viewModel: viewModel,
-                    tailCenterFromTrailing: popoverTailCenterFromTrailing,
+                    primaryColor: viewModel.selectedPalette.primary,
+                    tailCenterFromTrailing: popoverTailCenterFromTrailing(for: levelButtonFrame, width: width),
                     onSelectUnlockedLevel: handleUnlockedLevelSelection
                 )
                 .offset(
-                    x: popoverOriginX,
+                    x: popoverOriginX(for: levelButtonFrame, width: width),
                     y: levelButtonFrame.maxY + 2
                 )
                 .transition(
-                    .scale(scale: 0.88, anchor: popoverScaleAnchor)
+                    .scale(scale: 0.88, anchor: popoverScaleAnchor(for: levelButtonFrame, width: width))
+                    .combined(with: .opacity)
+                )
+                .zIndex(2)
+            }
+            
+            if activePopover == .colorPalette {
+                let width = ColorPalettePickerView.popoverWidth
+                ColorPalettePickerView(
+                    viewModel: viewModel,
+                    tailCenterFromTrailing: popoverTailCenterFromTrailing(for: paletteButtonFrame, width: width),
+                    onSelectPalette: handlePaletteSelection
+                )
+                .offset(
+                    x: popoverOriginX(for: paletteButtonFrame, width: width),
+                    y: paletteButtonFrame.maxY + 2
+                )
+                .transition(
+                    .scale(scale: 0.88, anchor: popoverScaleAnchor(for: paletteButtonFrame, width: width))
                     .combined(with: .opacity)
                 )
                 .zIndex(2)
@@ -255,9 +289,9 @@ struct MainView: View {
             }
         }
         
-        if isShowingLevelPicker {
+        if activePopover != nil {
             withAnimation(.easeInOut(duration: 0.2)) {
-                isShowingLevelPicker = false
+                activePopover = nil
             }
         }
         
@@ -276,7 +310,21 @@ struct MainView: View {
         }
         
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-            isShowingLevelPicker.toggle()
+            activePopover = (activePopover == .levelPicker) ? nil : .levelPicker
+        }
+    }
+    
+    private func handleColorPaletteTapped() {
+        dismissHexUnavailableHint()
+        
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            activePopover = (activePopover == .colorPalette) ? nil : .colorPalette
+        }
+    }
+    
+    private func handlePaletteSelection(_ palette: ColorPalette) {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            viewModel.selectPalette(palette)
         }
     }
     
@@ -315,7 +363,7 @@ struct MainView: View {
     
     private func handleUnlockedLevelSelection(_ level: GameLevel) {
         withAnimation(.easeInOut(duration: 0.2)) {
-            isShowingLevelPicker = false
+            activePopover = nil
         }
         
         guard level != viewModel.selectedLevel else { return }
